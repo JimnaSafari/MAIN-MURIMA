@@ -19,8 +19,7 @@ const BookingModal = ({ isOpen, onClose, propertyTitle, propertyId }: BookingMod
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [checkInDate, setCheckInDate] = useState("");
-  const [checkOutDate, setCheckOutDate] = useState("");
+  const [bookingDate, setBookingDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
   const createBooking = useCreateBooking();
@@ -32,45 +31,36 @@ const BookingModal = ({ isOpen, onClose, propertyTitle, propertyId }: BookingMod
       return;
     }
 
-    if (!name || !email || !phone || !checkInDate || !checkOutDate) {
+    if (!name || !email || !phone || !bookingDate) {
       toast.error("Please fill in all fields");
       return;
     }
 
-    // Validate dates are not in the past
-    const checkIn = new Date(checkInDate);
-    const checkOut = new Date(checkOutDate);
+    // Validate date is not in the past
+    const booking = new Date(bookingDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (checkIn < today) {
-      toast.error("Check-in date must be in the future");
-      return;
-    }
-
-    if (checkOut <= checkIn) {
-      toast.error("Check-out date must be after check-in date");
+    if (booking < today) {
+      toast.error("Booking date must be in the future");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Use check-in date as the primary booking date
-      // Note: In a full implementation, the API should be updated to support separate check-in/out dates
       await createBooking.mutateAsync({
-        property_id: propertyId,
+        property: parseInt(propertyId),
         guest_name: name,
         guest_email: email,
         guest_phone: phone,
-        booking_date: format(checkIn, 'yyyy-MM-dd'),
+        booking_date: format(booking, 'yyyy-MM-dd'),
       });
-      toast.success(`Booking request submitted successfully! Check-in: ${format(checkIn, 'MMM dd, yyyy')} - Check-out: ${format(checkOut, 'MMM dd, yyyy')}`);
+      toast.success(`Booking request submitted successfully! Booking date: ${format(booking, 'MMM dd, yyyy')}`);
       onClose();
       setName("");
       setEmail("");
       setPhone("");
-      setCheckInDate("");
-      setCheckOutDate("");
+      setBookingDate("");
     } catch (error) {
       console.error("Booking error:", error);
       toast.error("Failed to submit booking. Please try again.");
@@ -105,27 +95,15 @@ const BookingModal = ({ isOpen, onClose, propertyTitle, propertyId }: BookingMod
             <Label htmlFor="phone">Phone Number</Label>
             <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="checkInDate">Check-in Date</Label>
-              <Input
-                id="checkInDate"
-                type="date"
-                value={checkInDate}
-                onChange={(e) => setCheckInDate(e.target.value)}
-                min={format(new Date(), 'yyyy-MM-dd')}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="checkOutDate">Check-out Date</Label>
-              <Input
-                id="checkOutDate"
-                type="date"
-                value={checkOutDate}
-                onChange={(e) => setCheckOutDate(e.target.value)}
-                min={checkInDate || format(new Date(), 'yyyy-MM-dd')}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="bookingDate">Booking Date</Label>
+            <Input
+              id="bookingDate"
+              type="date"
+              value={bookingDate}
+              onChange={(e) => setBookingDate(e.target.value)}
+              min={format(new Date(), 'yyyy-MM-dd')}
+            />
           </div>
         </div>
         <DialogFooter>

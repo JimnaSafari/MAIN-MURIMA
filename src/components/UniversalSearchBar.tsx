@@ -34,7 +34,6 @@ const appFunctions = [
   { id: 'contact', name: 'Contact Us', icon: Phone, path: '/contact', description: 'Get in touch with us', category: 'Info' },
 
   // Actions/Features
-  { id: 'book-property', name: 'Book Property', icon: Calendar, path: '/airbnb', description: 'Book Airbnb stays', category: 'Actions' },
   { id: 'request-quote', name: 'Request Quote', icon: FileText, path: '/quotes', description: 'Get moving quotes', category: 'Actions' },
   { id: 'list-property', name: 'List Property', icon: Home, path: '/dashboard', description: 'List your property', category: 'Actions' },
   { id: 'find-movers', name: 'Find Movers', icon: Truck, path: '/movers', description: 'Locate moving services', category: 'Actions' },
@@ -127,7 +126,8 @@ const UniversalSearchBar = ({ className = "" }: UniversalSearchBarProps) => {
         {/* Search Button */}
         <Button
           onClick={handleSearch}
-          className="bg-orange-500 hover:bg-orange-600 text-white h-10 px-6 rounded-lg"
+          variant="orange"
+          className="h-10 px-6"
         >
           <Search className="h-4 w-4 mr-2" />
           Search

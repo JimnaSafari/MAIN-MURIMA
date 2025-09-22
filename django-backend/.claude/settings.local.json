@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/md/Pearl/Karanja/Masskan Murima MAIN/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

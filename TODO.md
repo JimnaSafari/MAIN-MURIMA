@@ -1,18 +1,13 @@
-# Task: Fix Image Navigation in Airbnb Properties for Kilimani, Meru Nkubu, and Chuka
+# TODO: Add Airbnb Properties for Kilimani, Nkubu, and Chuka with KSH 5000 per night
 
-## Completed
-- [x] Analyzed PropertyCard.tsx and Airbnb.tsx code
-- [x] Identified missing Embla Carousel CSS as the likely cause of navigation issues
-- [x] Added required Embla Carousel CSS to src/index.css for proper carousel functionality
-- [x] Fixed PropertyCard.tsx to use the images array prop for carousel navigation
-- [x] Ensured carousel loops from first to last image seamlessly
-- [x] Updated all references from 'images' to 'imageArray' to avoid TypeScript errors
-
-## Pending
-- [ ] Test the image navigation on the Airbnb page for Kilimani and Chuka properties (Nkubu not in mock data)
-- [ ] Verify that users can navigate from first to last image and loop back seamlessly
+## Tasks
+- [x] Update Chuka Airbnb property price to 5000 in populate_mock_data.py
+- [x] Add new Nkubu Airbnb property with price 5000 in populate_mock_data.py
+- [x] Run the populate_mock_data management command to update the database
+- [x] Verify the properties are correctly added/updated in the database
 
 ## Notes
-- Added Embla Carousel CSS to src/index.css to enable proper carousel sliding and looping
-- The carousel in PropertyCard.tsx is configured with loop: true and navigation buttons
-- Images for Kilimani, Meru Nkubu, and Chuka are present in public/ folder
+- Kilimani Airbnb already exists with correct price and images
+- Chuka needs price update from 2500 to 5000
+- Nkubu needs to be added as new property
+- Images are already in public folder and referenced in the mock data

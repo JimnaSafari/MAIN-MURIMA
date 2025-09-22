@@ -1,83 +1,60 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiClient } from "@/services/api";
 
 export interface Booking {
-  id: string;
-  property_id: string;
-  user_id: string;
+  id: number;
+  property: number;
+  user: string;
   guest_name: string;
   guest_email: string;
   guest_phone: string;
   booking_date: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  check_in_date?: string;
+  check_out_date?: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   created_at: string;
   updated_at: string;
-  // Joined data
-  property?: {
-    title: string;
-    image: string;
-    type: string;
-    location: string;
-    price: number;
-    price_type: string;
-  };
 }
 
 export const useCreateBooking = () => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { tokens } = useAuth();
 
   return useMutation({
     mutationFn: async (booking: {
-      property_id: string;
+      property: number;
       guest_name: string;
       guest_email: string;
       guest_phone: string;
       booking_date: string;
+      check_in_date?: string;
+      check_out_date?: string;
     }) => {
-      if (!user) throw new Error("User must be authenticated");
-
-      const { data, error } = await supabase
-        .from("bookings")
-        .insert({
-          ...booking,
-          user_id: user.id,
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      return apiClient.createBooking(booking, tokens.access);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["user_bookings"] });
     },
   });
 };
 
 export const useUserBookings = () => {
-  const { user } = useAuth();
+  const { tokens } = useAuth();
 
   return useQuery({
-    queryKey: ["user_bookings", user?.id],
+    queryKey: ["user_bookings"],
     queryFn: async () => {
-      if (!user) throw new Error("User must be authenticated");
-
-      const { data, error } = await supabase
-        .from("bookings")
-        .select(`
-          *,
-          properties(title, image, type, location, price, price_type)
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      const data = await apiClient.getBookings(tokens.access);
+      // Handle paginated response
+      if (data && data.results) {
+        return data.results as Booking[];
+      }
       return data as Booking[];
     },
-    enabled: !!user,
+    enabled: !!tokens?.access,
   });
 };

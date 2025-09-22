@@ -11,49 +11,11 @@ import { useMovingServices } from "@/hooks/useMovingServices";
 import MovingServiceCard from "@/components/MovingServiceCard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ErrorMessage } from "@/components/ErrorMessage";
+import { allCounties } from "@/data/locations";
 
 // Mock data for properties (from Rentals.tsx, not directly used here but for context)
 // const mockProperties = [...] 
 
-// Mock data for moving service examples
-const movingServiceExamples = [
-  {
-    id: "m1",
-    serviceType: "Local Move",
-    origin: "Nairobi CBD",
-    destination: "Westlands",
-    date: "2025-08-20",
-    price: "KSh 15,000",
-    moverName: "Shophus Movers", // Added mover name
-    testimonial: "Seamless local move! Shophus Movers was efficient and careful with all our belongings.",
-    rating: 4.8,
-    image: "/hero-movers.png", // Placeholder image
-  },
-  {
-    id: "m2",
-    serviceType: "Long Distance Move",
-    origin: "Mombasa",
-    destination: "Nairobi",
-    date: "2025-09-01",
-    price: "KSh 50,000",
-    moverName: "Rinal Movers", // Added mover name
-    testimonial: "Great service for our cross-country move. Rinal Movers is highly recommended!",
-    rating: 4.5,
-    image: "/hero-movers.png", // Placeholder image
-  },
-  {
-    id: "m3",
-    serviceType: "Packing Services",
-    origin: "Karen",
-    destination: "Runda",
-    date: "2025-08-25",
-    price: "KSh 8,000",
-    moverName: "Greencab Movers", // Added mover name
-    testimonial: "Professional packing that saved us so much time and hassle. Greencab Movers did an excellent job.",
-    rating: 4.7,
-    image: "/hero-movers.png", // Placeholder image
-  },
-];
 
 const Movers = () => {
   const [locationInput, setLocationInput] = useState("");
@@ -89,67 +51,81 @@ const Movers = () => {
       {/* Search Form */}
       <section className="py-16 -mt-24 relative z-10">
         <div className="container mx-auto px-4">
-            {/* Using the styling from Rentals.tsx for the search form container */}
-            <div className="bg-black/50 backdrop-blur-md rounded-2xl p-6 md:p-8 shadow-elegant border border-white/20 animate-slide-up">
-            {/* Using the grid layout from Rentals.tsx */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end"> 
-              
-              {/* Location Field (similar to County in Rentals.tsx) */}
+          <div className="bg-black/50 backdrop-blur-md rounded-2xl p-6 md:p-8 shadow-elegant border border-white/20 animate-slide-up">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+              {/* County Field */}
               <div className="space-y-2 text-left">
-                <label className="text-sm font-medium text-white/80">Location</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Enter location..."
-                    className="pl-10 bg-white/90 border-white/30 focus:border-primary text-black"
-                    value={locationInput}
-                    onChange={(e) => setLocationInput(e.target.value)}
-                  />
-                </div>
+                <label className="text-sm font-medium text-white/80">Select County</label>
+                <Select
+                  value={locationInput}
+                  onValueChange={setLocationInput}
+                >
+                  <SelectTrigger className="bg-white/90 border-white/30 focus:border-primary text-black">
+                    <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
+                    <SelectValue placeholder="Select county..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allCounties.map((county) => (
+                      <SelectItem key={county} value={county}>
+                        {county}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Service Type Field (similar to Property Type in Rentals.tsx) */}
+              {/* Service Type Field */}
               <div className="space-y-2 text-left">
                 <label className="text-sm font-medium text-white/80">Service Type</label>
-                <Select 
-                  value={serviceType} 
-                  onValueChange={setServiceType}
-                >
+                <Select value={serviceType} onValueChange={setServiceType}>
                   <SelectTrigger>
                     <Truck className="h-4 w-4 mr-2 text-muted-foreground" />
                     <SelectValue placeholder="Select service type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="local">Local Move</SelectItem>
+                    <SelectItem value="local">Local Move (Same City)</SelectItem>
                     <SelectItem value="long-distance">Long Distance Move</SelectItem>
-                    <SelectItem value="packing">Packing Services</SelectItem>
-                    <SelectItem value="storage">Storage Services</SelectItem>
+                    <SelectItem value="interstate">Interstate Move</SelectItem>
+                    <SelectItem value="packing">Packing Only</SelectItem>
+                    <SelectItem value="storage">Storage Solutions</SelectItem>
+                    <SelectItem value="office">Office Relocation</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Date Field (new, similar to Price Range in Rentals.tsx) */}
+              {/* Date Field */}
               <div className="space-y-2 text-left">
-                <label className="text-sm font-medium text-white/80">Date</label>
-                <Select 
-                  value={moveDate} 
-                  onValueChange={setMoveDate}
-                >
-                  <SelectTrigger>
-                    <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <SelectValue placeholder="Select date..." />
+                <label className="text-sm font-medium text-white/80">Moving Date</label>
+                <Input
+                  type="date"
+                  className="bg-white/90 border-white/30 focus:border-primary text-black"
+                  value={moveDate}
+                  onChange={(e) => setMoveDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+
+              {/* Property Size Field */}
+              <div className="space-y-2 text-left">
+                <label className="text-sm font-medium text-white/80">Property Size</label>
+                <Select>
+                  <SelectTrigger className="bg-white/90 border-white/30 focus:border-primary text-black">
+                    <SelectValue placeholder="Select size..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {/* Placeholder date options */}
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="tomorrow">Tomorrow</SelectItem>
-                    <SelectItem value="next-week">Next Week</SelectItem>
+                    <SelectItem value="studio">Studio/Bedsitter</SelectItem>
+                    <SelectItem value="1bed">1 Bedroom</SelectItem>
+                    <SelectItem value="2bed">2 Bedrooms</SelectItem>
+                    <SelectItem value="3bed">3 Bedrooms</SelectItem>
+                    <SelectItem value="4bed">4+ Bedrooms</SelectItem>
+                    <SelectItem value="office">Office Space</SelectItem>
+                    <SelectItem value="warehouse">Warehouse</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Search Button - styled like Rentals.tsx */}
-              <Button onClick={handleSearch} className="h-12 bg-orange-500 hover:bg-orange-600">
+              {/* Search Button */}
+              <Button onClick={handleSearch} variant="orange" className="h-12">
                 <Search className="h-4 w-4 mr-2" />
                 Get Quotes
               </Button>
@@ -228,24 +204,41 @@ const Movers = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* Why Choose Us Section */}
       <section className="py-16 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold text-center mb-8">Customer Testimonials</h2>
+          <h2 className="text-2xl font-bold text-center mb-8">Why Choose Our Moving Network</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {movingServiceExamples.map((example) => (
-              <Card key={example.id} className="text-center border-0 bg-card/80 backdrop-blur shadow-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-center mb-4">
-                    <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium ml-2">{example.rating}</span>
-                  </div>
-                  <p className="text-muted-foreground mb-4">"{example.testimonial}"</p>
-                  <div className="font-semibold">{example.moverName}</div>
-                  <div className="text-sm text-muted-foreground">{example.serviceType}</div>
-                </CardContent>
-              </Card>
-            ))}
+            <Card className="text-center border-0 bg-card/80 backdrop-blur shadow-card">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center mb-4">
+                  <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium ml-2">Verified Movers</span>
+                </div>
+                <p className="text-muted-foreground mb-4">All our moving partners are thoroughly vetted and verified for quality service.</p>
+                <div className="font-semibold">Quality Assured</div>
+              </CardContent>
+            </Card>
+            <Card className="text-center border-0 bg-card/80 backdrop-blur shadow-card">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center mb-4">
+                  <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium ml-2">Best Prices</span>
+                </div>
+                <p className="text-muted-foreground mb-4">Compare quotes from multiple movers to get the best deals for your move.</p>
+                <div className="font-semibold">Competitive Rates</div>
+              </CardContent>
+            </Card>
+            <Card className="text-center border-0 bg-card/80 backdrop-blur shadow-card">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center mb-4">
+                  <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium ml-2">Full Support</span>
+                </div>
+                <p className="text-muted-foreground mb-4">Get support throughout your moving process, from quote to completion.</p>
+                <div className="font-semibold">24/7 Customer Care</div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

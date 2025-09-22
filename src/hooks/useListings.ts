@@ -1,47 +1,144 @@
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+const DJANGO_API_BASE = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000/api';
+
 export interface PropertyListing {
-  id?: string;
   title: string;
   location: string;
+  county?: string;
+  town?: string;
   price: number;
   price_type: string;
-  bedrooms: number;
-  bathrooms: number;
-  area: number;
-  image: string;
   type: string;
-  featured?: boolean;
+  bedrooms?: number;
+  bathrooms?: number;
+  area?: number;
+  rental_type?: string;
+  image: string;
+  images?: string[];
+  managed_by?: string;
   landlord_name?: string;
   agency_name?: string;
-  managed_by?: string;
-  landlord_verified?: boolean;
-  agency_verified?: boolean;
-  reviews?: number;
-  rating?: number;
+  featured?: boolean;
 }
 
 export const useCreateProperty = () => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { tokens } = useAuth();
 
   return useMutation({
     mutationFn: async (property: PropertyListing) => {
-      if (!user) throw new Error("User must be authenticated");
+      if (!tokens?.access) throw new Error("User must be authenticated");
 
-      const { data, error } = await supabase
-        .from("properties")
-        .insert({
-          ...property,
-          created_by: user.id
-        })
-        .select()
-        .single();
+      const response = await fetch(`${DJANGO_API_BASE}/properties/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+        body: JSON.stringify(property),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to create property: ${response.status}`);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["properties"] });
+    },
+  });
+};
+
+export const useUserProperties = () => {
+  const { tokens } = useAuth();
+
+  return useQuery({
+    queryKey: ["user_properties"],
+    queryFn: async () => {
+      if (!tokens?.access) throw new Error("User must be authenticated");
+
+      const response = await fetch(`${DJANGO_API_BASE}/properties/?created_by_user=true`, {
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user properties: ${response.status}`);
+      }
+
+      const data = await response.json();
       return data;
+    },
+    enabled: !!tokens?.access,
+  });
+};
+
+export const useCreateMarketplaceItem = () => {
+  const queryClient = useQueryClient();
+  const { tokens } = useAuth();
+
+  return useMutation({
+    mutationFn: async (item: {
+      title: string;
+      price: number;
+      category: string;
+      condition: string;
+      description?: string;
+      location: string;
+      image: string;
+    }) => {
+      if (!tokens?.access) throw new Error("User must be authenticated");
+
+      const response = await fetch(`${DJANGO_API_BASE}/marketplace/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+        body: JSON.stringify(item),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to create marketplace item: ${response.status}`);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["marketplace_items"] });
+    },
+  });
+};
+
+export const useUpdateProperty = () => {
+  const queryClient = useQueryClient();
+  const { tokens } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<PropertyListing> }) => {
+      if (!tokens?.access) throw new Error("User must be authenticated");
+
+      const response = await fetch(`${DJANGO_API_BASE}/properties/${id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to update property: ${response.status}`);
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["properties"] });
@@ -50,57 +147,31 @@ export const useCreateProperty = () => {
   });
 };
 
-export const useUserProperties = () => {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ["user_properties", user?.id],
-    queryFn: async () => {
-      if (!user) throw new Error("User must be authenticated");
-
-      const { data, error } = await supabase
-        .from("properties")
-        .select("*")
-        .eq("created_by", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-};
-
-export const useCreateMarketplaceItem = () => {
+export const useDeleteProperty = () => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { tokens } = useAuth();
 
   return useMutation({
-    mutationFn: async (item: {
-      title: string;
-      price: number;
-      condition: string;
-      location: string;
-      image: string;
-      category: string;
-    }) => {
-      if (!user) throw new Error("User must be authenticated");
+    mutationFn: async (id: number) => {
+      if (!tokens?.access) throw new Error("User must be authenticated");
 
-      const { data, error } = await supabase
-        .from("marketplace_items")
-        .insert({
-          ...item,
-          created_by: user.id
-        })
-        .select()
-        .single();
+      const response = await fetch(`${DJANGO_API_BASE}/properties/${id}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
 
-      if (error) throw error;
-      return data;
+      if (!response.ok && response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to delete property: ${response.status}`);
+      }
+
+      return true;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["marketplace_items"] });
-      queryClient.invalidateQueries({ queryKey: ["user_marketplace_items"] });
+      queryClient.invalidateQueries({ queryKey: ["properties"] });
+      queryClient.invalidateQueries({ queryKey: ["user_properties"] });
     },
   });
 };

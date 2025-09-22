@@ -17,11 +17,11 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 217 91.2% 59.8%; /* A vibrant blue */
+    --primary: 217 91.2% 35%; /* Deep blue */
     --primary-foreground: 0 0% 98%; /* White for text on primary */
-    
-    --primary-light: 217 91.2% 65%; /* Lighter shade of primary */
-    --primary-dark: 217 91.2% 50%; /* Darker shade of primary */
+
+    --primary-light: 217 91.2% 45%; /* Lighter shade of deep primary */
+    --primary-dark: 217 91.2% 25%; /* Darker shade of deep primary */
 
     --secondary: 22 84% 53%;
     --secondary-foreground: 0 0% 98%;

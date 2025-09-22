@@ -172,7 +172,7 @@ const SimpleQuoteModal = ({ isOpen, onClose, serviceId, serviceName }: SimpleQuo
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-orange-500 hover:bg-orange-600">
+          <Button onClick={handleSubmit} disabled={isSubmitting} variant="orange">
             {isSubmitting ? 'Sending...' : 'Get Quote'}
           </Button>
         </div>

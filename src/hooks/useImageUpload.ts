@@ -1,37 +1,32 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiClient, getApiBaseUrl } from '@/services/api';
 
-export const useImageUpload = (bucket: string) => {
+export const useImageUpload = (_bucket: string) => {
   const [uploading, setUploading] = useState(false);
-  const { user } = useAuth();
+  const { user, tokens } = useAuth();
 
-  const uploadImage = async (file: File, folder?: string): Promise<string | null> => {
+  const uploadImage = async (file: File, _folder?: string): Promise<string | null> => {
     if (!user) {
       throw new Error('User must be authenticated to upload images');
+    }
+    if (!tokens?.access) {
+      throw new Error('Missing access token for upload');
     }
 
     try {
       setUploading(true);
-      
-      const fileExt = file.name.split('.').pop();
-      const filePath = folder 
-        ? `${folder}/${user.id}/${Date.now()}.${fileExt}`
-        : `${user.id}/${Date.now()}.${fileExt}`;
+      const data = await apiClient.uploadImage(file, tokens.access);
 
-      const { error } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, file);
+      let url: string = data.image_url as string;
+      if (!url) return null;
 
-      if (error) {
-        throw error;
+      // Normalize to absolute URL if backend returned relative (e.g., /media/...)
+      if (url.startsWith('/')) {
+        const backendOrigin = getApiBaseUrl().replace(/\/?api\/?$/, '');
+        url = `${backendOrigin}${url}`;
       }
-
-      const { data } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
+      return url;
     } catch (error) {
       console.error('Error uploading image:', error);
       throw error;
@@ -41,18 +36,8 @@ export const useImageUpload = (bucket: string) => {
   };
 
   const deleteImage = async (filePath: string) => {
-    try {
-      const { error } = await supabase.storage
-        .from(bucket)
-        .remove([filePath]);
-
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
-      console.error('Error deleting image:', error);
-      throw error;
-    }
+    // Not implemented yet: backend delete endpoint can be added later
+    console.warn('deleteImage is not implemented for Django storage yet.', filePath);
   };
 
   return {

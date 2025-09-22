@@ -157,7 +157,7 @@ const QuoteModal = ({ isOpen, onClose, serviceId, serviceName }: QuoteModalProps
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting} variant="orange">
             {isSubmitting ? 'Submitting...' : 'Request Quote'}
           </Button>
         </div>

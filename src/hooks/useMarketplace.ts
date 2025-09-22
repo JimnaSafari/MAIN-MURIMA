@@ -1,17 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiClient, buildQueryParams } from "@/services/api";
 
 export interface MarketplaceItem {
-  id: string;
+  id: number;
   title: string;
   price: number;
+  category: string;
   condition: string;
+  description?: string;
   location: string;
   image: string;
-  category: string;
-  created_by: string;
+  created_by: number;
   created_at: string;
-  updated_at: string;
 }
 
 export const useMarketplaceItems = (filters?: {
@@ -19,35 +20,42 @@ export const useMarketplaceItems = (filters?: {
   location?: string;
   condition?: string;
   search?: string;
+  min_price?: number;
+  max_price?: number;
 }) => {
   return useQuery({
     queryKey: ["marketplace_items", filters],
     queryFn: async () => {
-      let query = supabase
-        .from("marketplace_items")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const params = buildQueryParams({
+        category: filters?.category,
+        location: filters?.location,
+        condition: filters?.condition,
+        search: filters?.search,
+        min_price: filters?.min_price,
+        max_price: filters?.max_price,
+      });
 
-      if (filters?.category) {
-        query = query.eq("category", filters.category);
+      const data = await apiClient.getMarketplaceItems(params);
+      // Handle paginated response
+      if (data && data.results) {
+        return data.results as MarketplaceItem[];
       }
-
-      if (filters?.location) {
-        query = query.ilike("location", `%${filters.location}%`);
-      }
-
-      if (filters?.condition) {
-        query = query.eq("condition", filters.condition);
-      }
-
-      if (filters?.search) {
-        query = query.or(`title.ilike.%${filters.search}%,category.ilike.%${filters.search}%`);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
       return data as MarketplaceItem[];
+    },
+  });
+};
+
+export const useCreateMarketplaceItem = () => {
+  const { tokens } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (item: Omit<MarketplaceItem, 'id' | 'created_by' | 'created_at'>) => {
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      return apiClient.createMarketplaceItem(item, tokens.access);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace_items'] });
     },
   });
 };

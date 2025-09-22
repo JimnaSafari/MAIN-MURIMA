@@ -10,14 +10,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { ErrorMessage } from '@/components/ErrorMessage';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Camera, User, Mail, Phone, FileText } from 'lucide-react';
+import { Camera, User, Mail, Phone, FileText, KeyRound, Trash2, Shield, Settings } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 
 const Profile = () => {
   const { user } = useAuth();
-  const { data: profile, isLoading } = useProfile();
+  const { data: profile, isLoading, error } = useProfile();
   const updateProfile = useUpdateProfile();
   const { uploadImage, uploading } = useImageUpload('avatars');
   const { toast } = useToast();
@@ -40,6 +45,13 @@ const Profile = () => {
       });
     }
   }, [profile]);
+
+  const calculateProfileCompletion = () => {
+    if (!profile) return 0;
+    const fields = [profile.username, profile.full_name, profile.phone, profile.bio, profile.avatar_url];
+    const filledFields = fields.filter(field => field && field.trim() !== '').length;
+    return Math.round((filledFields / fields.length) * 100);
+  };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -91,6 +103,32 @@ const Profile = () => {
     );
   }
 
+  if (error) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <ErrorMessage
+            message={`Failed to load profile: ${error.message || 'Unknown error'}. Please try again.`}
+            onRetry={() => window.location.reload()}
+          />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <LoadingSpinner />
+            <p className="mt-4 text-muted-foreground">Loading profile...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <ProtectedRoute>
       <Layout>
@@ -100,25 +138,49 @@ const Profile = () => {
             <div className="text-center">
               <h1 className="text-3xl font-bold">My Profile</h1>
               <p className="text-muted-foreground mt-2">Manage your personal information</p>
+              <div className="mt-4">
+                <div className="flex justify-between text-sm text-muted-foreground mb-2">
+                  <span>Profile Completion</span>
+                  <span>{calculateProfileCompletion()}%</span>
+                </div>
+                <Progress value={calculateProfileCompletion()} className="w-full" />
+              </div>
             </div>
 
-            {/* Profile Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Profile Information
-                  <Button
-                    variant={isEditing ? "outline" : "default"}
-                    onClick={() => setIsEditing(!isEditing)}
-                  >
-                    {isEditing ? "Cancel" : "Edit Profile"}
-                  </Button>
-                </CardTitle>
-              </CardHeader>
+            {/* Profile Tabs */}
+            <Tabs defaultValue="personal" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="personal" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Personal Info
+                </TabsTrigger>
+                <TabsTrigger value="security" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Security
+                </TabsTrigger>
+                <TabsTrigger value="preferences" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Preferences
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="personal" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      Profile Information
+                      <Button
+                        variant={isEditing ? "outline" : "default"}
+                        onClick={() => setIsEditing(!isEditing)}
+                      >
+                        {isEditing ? "Cancel" : "Edit Profile"}
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
               <CardContent className="space-y-6">
                 {/* Avatar Section */}
                 <div className="flex flex-col items-center space-y-4">
-                  <div className="relative">
+                  <div className="relative group"> {/* Added group class for hover effect */}
                     <Avatar className="h-24 w-24">
                       <AvatarImage src={profile?.avatar_url || ''} />
                       <AvatarFallback className="text-2xl">
@@ -126,7 +188,9 @@ const Profile = () => {
                       </AvatarFallback>
                     </Avatar>
                     {isEditing && (
-                      <label className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 cursor-pointer hover:bg-primary/90">
+                      <label 
+                        className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-200"  // Added transition
+                      >
                         <Camera className="h-4 w-4" />
                         <input
                           type="file"
@@ -242,17 +306,59 @@ const Profile = () => {
                     </div>
                   )}
                 </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                {/* Account Info */}
-                <div className="pt-6 border-t">
-                  <h4 className="font-semibold mb-2">Account Information</h4>
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    <p>Account created: {new Date(profile?.created_at || '').toLocaleDateString()}</p>
-                    <p>Last updated: {new Date(profile?.updated_at || '').toLocaleDateString()}</p>
+            <TabsContent value="security" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Security Settings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Change Password */}
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Change Password</h4>
+                    <form className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="current_password">Current Password</Label>
+                        <Input id="current_password" type="password" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="new_password">New Password</Label>
+                        <Input id="new_password" type="password" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirm_password">Confirm New Password</Label>
+                        <Input id="confirm_password" type="password" />
+                      </div>
+                      <Button type="submit">Update Password</Button>
+                    </form>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+
+                  {/* Account Info */}
+                  <div className="pt-6 border-t">
+                    <h4 className="font-semibold mb-4">Account Information</h4>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>Account created: {new Date(profile?.created_at || '').toLocaleDateString()}</p>
+                      <p>Last updated: {new Date(profile?.updated_at || '').toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="preferences" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Preferences</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Preferences settings will be implemented here.</p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
           </div>
         </div>
       </Layout>

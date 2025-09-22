@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Django Backend
+  django-backend:
+    build:
+      context: ./django-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=django-insecure-production-key-change-this-in-production
+      - ALLOWED_HOSTS=localhost,127.0.0.1,django-backend
+      - DATABASE_URL=sqlite:///db.sqlite3
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
+      - SUPABASE_URL=https://bjpezohjzktqpvfhdutb.supabase.co
+      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqcGV6b2hqemt0cXB2ZmhkdXRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNzk0MDMsImV4cCI6MjA3MDY1NTQwM30.L52z5uCuDrLJmnq8m4BVJkGl4PZGUupQbVqx-lWkwS8
+    volumes:
+      - ./django-backend/db.sqlite3:/app/db.sqlite3
+      - ./django-backend/media:/app/media
+    depends_on:
+      - postgres
+    networks:
+      - masskan-network
+
+  # PostgreSQL Database (for production-like setup)
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=masskan_db
+      - POSTGRES_USER=masskan_user
+      - POSTGRES_PASSWORD=masskan_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - masskan-network
+
+  # Redis (for caching and sessions)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - masskan-network
+
+  # Frontend (for development)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_SUPABASE_URL=https://bjpezohjzktqpvfhdutb.supabase.co
+      - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqcGV6b2hqemt0cXB2ZmhkdXRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNzk0MDMsImV4cCI6MjA3MDY1NTQwM30.L52z5uCuDrLJmnq8m4BVJkGl4PZGUupQbVqx-lWkwS8
+      - VITE_DJANGO_API_URL=http://localhost:8000/api
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - masskan-network
+
+volumes:
+  postgres_data:
+
+networks:
+  masskan-network:
+    driver: bridge

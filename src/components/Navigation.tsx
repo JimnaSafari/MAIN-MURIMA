@@ -52,20 +52,24 @@ const Navigation = () => {
     icon: Building
   }];
   const isActive = (path: string) => location.pathname === path;
-  return <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4">
+  return <nav className="sticky top-0 z-50 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60 shadow-sm">
+      <div className="container mx-auto px-4 lg:px-6">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <img src="/lovable-uploads/8e06edac-8894-46c3-9b37-ceaa1e503c5e.png" alt="Masskan Rima Logo" className="h-8 w-auto" />
-            <span className="text-xl font-bold text-blue-950">Masskan Rima</span>
+          <Link to="/" className="flex items-center space-x-3 group">
+            <div className="relative">
+              <img src="/lovable-uploads/8e06edac-8894-46c3-9b37-ceaa1e503c5e.png" alt="Masskan Rima Logo" className="h-9 w-auto transition-transform group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+            <span className="text-xl font-bold text-blue-600">Masskan Rima</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1">
-            {navItems.map(item => <Link key={item.href} to={item.href} className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isActive(item.href) ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"}`}>
-                <item.icon className="h-4 w-4" />
-                <span className="my-0 py-0 mx-0 px-0 text-center text-blue-950 text-base font-semibold">{item.label}</span>
+          <div className="hidden lg:flex items-center space-x-1">
+            {navItems.map(item => <Link key={item.href} to={item.href} className={`group relative flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${isActive(item.href) ? "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 shadow-sm border border-orange-200/50" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50/80"}`}>
+                <item.icon className={`h-4 w-4 transition-colors ${isActive(item.href) ? "text-orange-600" : "text-slate-500 group-hover:text-slate-700"}`} />
+                <span className="font-medium">{item.label}</span>
+                {isActive(item.href) && <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-orange-600 rounded-full"></div>}
               </Link>)}
           </div>
 

@@ -79,11 +79,9 @@ const ListingForm = ({ type }: ListingFormProps) => {
       );
       const primaryImageUrl = imageUrls[0];
 
-      // Filter out fields that don't exist in current database schema
-      const { county, town, rental_type, ...databaseFields } = formData;
-
+      // Prepare listing data with all supported fields
       const listingData = {
-        ...databaseFields, // Only fields that exist in current DB
+        ...formData,
         image: primaryImageUrl,
         images: imageUrls, // Store all image URLs
       };

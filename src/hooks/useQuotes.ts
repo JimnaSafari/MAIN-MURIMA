@@ -1,11 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiClient } from "@/services/api";
 
 export interface Quote {
-  id: string;
-  service_id: string;
-  user_id: string;
+  id: number;
+  service: {
+    id: number;
+    name: string;
+    location: string;
+    price_range: string;
+    services: string[];
+    image: string;
+    rating?: number;
+    reviews?: number;
+    verified: boolean;
+    created_at: string;
+  };
+  user: number;
   client_name: string;
   client_email: string;
   client_phone: string;
@@ -14,25 +25,18 @@ export interface Quote {
   moving_date: string;
   inventory?: string;
   quote_amount?: number;
-  status: 'pending' | 'quoted' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'quoted' | 'accepted' | 'rejected' | 'completed';
   created_at: string;
   updated_at: string;
-  // Joined data
-  service?: {
-    name: string;
-    image: string;
-    location: string;
-    price_range: string;
-  };
 }
 
 export const useCreateQuote = () => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { tokens } = useAuth();
 
   return useMutation({
     mutationFn: async (quote: {
-      service_id: string;
+      service: number;
       client_name: string;
       client_email: string;
       client_phone: string;
@@ -41,47 +45,30 @@ export const useCreateQuote = () => {
       moving_date: string;
       inventory?: string;
     }) => {
-      if (!user) throw new Error("User must be authenticated");
-
-      const { data, error } = await supabase
-        .from("mover_quotes")
-        .insert({
-          ...quote,
-          user_id: user.id,
-          status: 'pending'
-        })
-        .select()
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      return apiClient.createQuote(quote, tokens.access);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["user_quotes"] });
     },
   });
 };
 
 export const useUserQuotes = () => {
-  const { user } = useAuth();
+  const { tokens } = useAuth();
 
   return useQuery({
-    queryKey: ["user_quotes", user?.id],
+    queryKey: ["user_quotes"],
     queryFn: async () => {
-      if (!user) throw new Error("User must be authenticated");
-
-      const { data, error } = await supabase
-        .from("mover_quotes")
-        .select(`
-          *,
-          moving_services(name, image, location, price_range)
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      const data = await apiClient.getQuotes(tokens.access);
+      // Handle paginated response
+      if (data && data.results) {
+        return data.results as Quote[];
+      }
       return data as Quote[];
     },
-    enabled: !!user,
+    enabled: !!tokens?.access,
   });
 };

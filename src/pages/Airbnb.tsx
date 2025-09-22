@@ -10,86 +10,7 @@ import BookingModal from "@/components/BookingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import heroAirbnb from "@/assets/hero-airbnb.jpg";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-
-// Mock data for Airbnb properties
-const mockAirbnbProperties = [
-  {
-    id: "kilimani-airbnb-1",
-    title: "Luxury Kilimani Apartment",
-    location: "Kilimani, Nairobi",
-    price: 5000,
-    price_type: "night",
-    rating: 4.9,
-    reviews: 35,
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 750,
-    image: "/kilimani-airbnb-1.jpeg",
-    images: [
-      "/kilimani-airbnb-1.jpeg",
-      "/kilimani-airbnb-2.jpeg",
-      "/kilimani-airbnb-3.jpeg",
-      "/kilimani-airbnb-4.jpeg",
-    ],
-    type: "airbnb",
-    featured: true,
-    managed_by: "Landlord",
-    landlord_name: "Jane Doe",
-  },
-  {
-    id: "kilimani-airbnb-2",
-    title: "Cozy Studio in Kilimani",
-    location: "Kilimani, Nairobi",
-    price: 3500,
-    price_type: "night",
-    rating: 4.7,
-    reviews: 20,
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 500,
-    image: "/Kilimani 1.jpeg",
-    images: [
-      "/Kilimani 1.jpeg",
-      "/Kilimani 2.jpeg",
-      "/Kilimani 3.jpeg",
-      "/Kilimani 4.jpeg",
-      "/Kilimani 5.jpeg",
-      "/Kilimani 6.jpeg",
-      "/Kilimani 7.jpeg",
-    ],
-    type: "airbnb",
-    featured: false,
-    managed_by: "Agency",
-    agency_name: "Kilimani Stays",
-  },
-  {
-    id: "chuka-airbnb-1",
-    title: "Chuka Getaway Home",
-    location: "Chuka, Meru",
-    price: 2500,
-    price_type: "night",
-    rating: 4.5,
-    reviews: 15,
-    bedrooms: 2,
-    bathrooms: 1,
-    area: 900,
-    image: "/Chuka 1.jpeg",
-    images: [
-      "/Chuka 1.jpeg",
-      "/Chuka 2.jpeg",
-      "/Chuka 3.jpeg",
-      "/Chuka 4.jpeg",
-      "/Chuka 5.jpeg",
-      "/Chuka 6.jpeg",
-    ],
-    type: "airbnb",
-    featured: false,
-    managed_by: "Landlord",
-    landlord_name: "Peter Njoroge",
-  },
-];
+import { useAirbnbProperties } from "@/hooks/useProperties";
 
 const Airbnb = () => {
   const [selectedCounty, setSelectedCounty] = useState("");
@@ -97,12 +18,15 @@ const Airbnb = () => {
   const [priceRange, setPriceRange] = useState("");
   const [guests, setGuests] = useState("");
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [selectedProperty, setSelectedProperty] = useState(null);
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
 
   const { user } = useAuth();
 
-  // Filter mock data based on selected criteria
-  const filteredProperties = mockAirbnbProperties.filter((property) => {
+  // Fetch Airbnb properties from backend
+  const { data: airbnbProperties = [], isLoading, error, refetch } = useAirbnbProperties();
+
+  // Filter data based on selected criteria
+  const filteredProperties = airbnbProperties.filter((property) => {
     let matches = true;
 
     if (selectedCounty && !property.location.includes(selectedCounty)) {
@@ -128,9 +52,7 @@ const Airbnb = () => {
     return matches;
   });
 
-  const properties = filteredProperties; // Use filtered mock data
-  const isLoading = false; // No loading for mock data
-  const error = null; // No error for mock data
+  const properties = filteredProperties; // Use filtered backend data
 
   const handleBookNow = (property) => {
     if (!user) {
@@ -146,8 +68,8 @@ const Airbnb = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
-      <PageHero 
+
+      <PageHero
         title="Airbnb Stays"
         subtitle="Experience Kenyan hospitality with our unique stays."
         imageUrl={heroAirbnb}
@@ -156,17 +78,36 @@ const Airbnb = () => {
       <section className="py-16 -mt-24 relative z-10">
         <div className="container mx-auto px-4">
           <div className="bg-black/50 backdrop-blur-md rounded-2xl p-6 md:p-8 shadow-elegant border border-white/20">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
               <div className="space-y-2 text-left">
-                <label className="text-sm font-medium text-white/80">Location</label>
-                <Select onValueChange={setSelectedCounty}>
+                <label className="text-sm font-medium text-white/80">Select County</label>
+                <Select value={selectedCounty} onValueChange={setSelectedCounty}>
                   <SelectTrigger>
-                    <SelectValue placeholder="All Locations" />
+                    <SelectValue placeholder="Select county..." />
                   </SelectTrigger>
                   <SelectContent>
                     {allCounties.map((county) => (
                       <SelectItem key={county} value={county}>
                         {county}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 text-left">
+                <label className="text-sm font-medium text-white/80">Select Town</label>
+                <Select
+                  value={selectedTown}
+                  onValueChange={setSelectedTown}
+                  disabled={!selectedCounty}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select town..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {towns.map((town) => (
+                      <SelectItem key={town.name} value={town.name}>
+                        {town.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -199,7 +140,7 @@ const Airbnb = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button className="h-12 bg-orange-500 hover:bg-orange-600 text-white">
+              <Button variant="orange" className="h-12">
                 Filter
               </Button>
             </div>
@@ -209,31 +150,41 @@ const Airbnb = () => {
 
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-8">Featured Stays</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {properties.map((property) => (
-              <PropertyCard
-                key={property.id}
-                id={property.id}
-                title={property.title}
-                location={property.location}
-                price={property.price}
-                priceType={property.price_type as "month" | "night"}
-                rating={property.rating || 4.0}
-                reviews={property.reviews || 0}
-                bedrooms={property.bedrooms}
-                bathrooms={property.bathrooms}
-                area={property.area}
-                image={property.image}
-                images={property.images} /* Pass the array of images */
-                type={property.type}
-                featured={property.featured || false}
-                managed_by={property.managed_by || "Landlord"}
-                landlord_name={property.landlord_name || ""}
-                agency_name={property.agency_name || ""}
-                onBook={() => handleBookNow(property)}
-              />
-            ))}
+          <div className="bg-sky-50/20 backdrop-blur-md rounded-lg p-6 shadow-lg border border-sky-100/30">
+            <h2 className="text-2xl font-bold mb-8">Featured Stays</h2>
+            {isLoading ? (
+              <div className="text-center py-8">Loading Airbnb properties...</div>
+            ) : error ? (
+              <div className="text-center py-8 text-red-500">Error loading Airbnb properties: {error.message}</div>
+            ) : properties.length === 0 ? (
+              <div className="text-center py-8">No Airbnb properties found. Debug: Backend returned {airbnbProperties.length} properties</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {properties.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  id={property.id}
+                  title={property.title}
+                  location={property.location}
+                  price={property.price}
+                  priceType={property.price_type as "month" | "night"}
+                  rating={property.rating || 4.0}
+                  reviews={property.reviews || 0}
+                  bedrooms={property.bedrooms}
+                  bathrooms={property.bathrooms}
+                  area={property.area}
+                  image={property.image}
+                  images={property.images} /* Pass the array of images */
+                  type={property.type}
+                  featured={property.featured || false}
+                  managed_by={property.managed_by || "Landlord"}
+                  landlord_name={property.landlord_name || ""}
+                  agency_name={property.agency_name || ""}
+                  onBook={() => handleBookNow(property)}
+                />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -243,7 +194,7 @@ const Airbnb = () => {
           isOpen={isBookingModalOpen}
           onClose={() => setIsBookingModalOpen(false)}
           propertyTitle={selectedProperty.title}
-          propertyId={selectedProperty.id || ''}
+          propertyId={selectedProperty.id.toString()}
         />
       )}
 

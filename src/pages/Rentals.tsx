@@ -2,179 +2,139 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import PageHero from "@/components/PageHero";
 import { useState, useEffect } from "react";
-import { Search, MapPin } from "lucide-react";
+import { Search, MapPin, Filter, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PropertyCard from "@/components/PropertyCard";
+import PropertyDetailsModal from "@/components/PropertyDetailsModal";
 import BookingModal from "@/components/BookingModal";
-import { locationData, allCounties } from "@/data/locations";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-
-// Mock data for properties
-const mockProperties = [
-  {
-    id: "9d0ffa08-2df5-4a11-91da-662952d7a8a2",
-    title: "Spacious Family Home",
-    location: "Nairobi West",
-    price: 150000,
-    priceType: "month" as const,
-    rating: 4.5,
-    reviews: 120,
-    bedrooms: 4,
-    bathrooms: 3,
-    area: 2500,
-    image: "/three-bedroom.jpg",
-    type: "House",
-    featured: true,
-    managed_by: "Landlord",
-    landlord_name: "John Doe",
-  },
-  {
-    id: "694ee174-ced2-4593-8941-e40fe063a0bd",
-    title: "Modern Apartment in CBD",
-    location: "Nairobi CBD",
-    price: 80000,
-    priceType: "month" as const,
-    rating: 4.8,
-    reviews: 95,
-    bedrooms: 2,
-    bathrooms: 2,
-    area: 1200,
-    image: "/two-bedroom.jpg",
-    type: "Apartment",
-    managed_by: "Agency",
-    agency_name: "Prime Properties",
-  },
-  {
-    id: "75f43f63-863b-46cf-b74f-394859dc6c33",
-    title: "Cozy Studio Flat",
-    location: "Westlands",
-    price: 45000,
-    priceType: "month" as const,
-    rating: 4.2,
-    reviews: 60,
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 600,
-    image: "/one-bedroom.jpg",
-    type: "Studio",
-  },
-  {
-    id: "b86556b4-6410-47f5-9662-6b81dc785d19",
-    title: "Single Room",
-    location: "Kasarani",
-    price: 10000,
-    priceType: "month" as const,
-    rating: 4.0,
-    reviews: 20,
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 200,
-    image: "/single-room.jpg",
-    type: "Single",
-  },
-  {
-    id: "d374694a-4354-4427-926a-5a36bbc38130",
-    title: "Bedsitter",
-    location: "Roysambu",
-    price: 15000,
-    priceType: "month" as const,
-    rating: 4.1,
-    reviews: 30,
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 300,
-    image: "/bedsitter.jpg",
-    type: "Bedsitter",
-  },
-];
+import { allCounties } from "@/data/locations";
+import { useRentalProperties } from "@/hooks/useProperties";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { ErrorMessage } from "@/components/ErrorMessage";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const Rentals = () => {
-  const [selectedCounty, setSelectedCounty] = useState("");
+  const [selectedCounty, setSelectedCounty] = useState("all");
   const [selectedTown, setSelectedTown] = useState("");
-  const [propertyType, setPropertyType] = useState("");
-  const [priceRange, setPriceRange] = useState("");
+  const [propertyType, setPropertyType] = useState("all");
+  const [priceRange, setPriceRange] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPropertyForDetails, setSelectedPropertyForDetails] = useState(null);
+  const [selectedPropertyForBooking, setSelectedPropertyForBooking] = useState(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [selectedProperty, setSelectedProperty] = useState(null);
+
+  const { user } = useAuth();
 
   useEffect(() => {
     document.title = "Rentals | Masskan Murima";
   }, []);
 
-  // Fetch properties from Supabase with filtering
-  const { data: properties = [], isLoading, error } = useQuery({
-    queryKey: ["properties", "rental", selectedCounty, selectedTown, propertyType, priceRange],
-    queryFn: async () => {
-      let query = supabase
-        .from("properties")
-        .select("*")
-        .eq("type", "rental") // Only fetch rental properties
-        .order("created_at", { ascending: false });
-
-      // Apply filters
-      if (selectedCounty) {
-        query = query.ilike("location", `%${selectedCounty}%`);
-      }
-      if (selectedTown) {
-        query = query.ilike("location", `%${selectedTown}%`);
-      }
-      if (propertyType) {
-        query = query.ilike("rental_type", propertyType);
-      }
-      if (priceRange) {
-        const [min, max] = priceRange.split("-").map(Number);
-        if (max) {
-          query = query.gte("price", min).lte("price", max);
-        } else {
-          query = query.gte("price", min);
-        }
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const handleSearch = () => {
-    // Filtering is now handled by the query, but we could add client-side filtering here if needed
-    // For now, the search will refetch data based on filters
+  // Build filters for the API call
+  const filters = {
+    type: "rental",
+    ...(selectedCounty && { county: selectedCounty }),
+    ...(selectedTown && { town: selectedTown }),
+    ...(propertyType && { rental_type: propertyType }),
+    ...(searchTerm && { search: searchTerm }),
   };
 
-  const handleBookNow = (property) => {
-    setSelectedProperty(property);
+  const { data: properties = [], isLoading, error, refetch } = useRentalProperties();
+
+  // Filter properties based on local filters (until backend supports all filters)
+  const filteredProperties = properties.filter(property => {
+    if (selectedCounty && selectedCounty !== "all" && !property.location?.toLowerCase().includes(selectedCounty.toLowerCase())) {
+      return false;
+    }
+    if (selectedTown && !property.location?.toLowerCase().includes(selectedTown.toLowerCase())) {
+      return false;
+    }
+    if (propertyType && propertyType !== "all" && property.rental_type !== propertyType) {
+      return false;
+    }
+    if (searchTerm && !property.title?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !property.location?.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+    if (priceRange && priceRange !== "all") {
+      const price = property.price;
+      switch (priceRange) {
+        case "under-50k":
+          return price < 50000;
+        case "50k-100k":
+          return price >= 50000 && price < 100000;
+        case "100k-200k":
+          return price >= 100000 && price < 200000;
+        case "over-200k":
+          return price >= 200000;
+        default:
+          return true;
+      }
+    }
+    return true;
+  });
+
+  const handleViewDetails = (property: any) => {
+    setSelectedPropertyForDetails(property);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleBookNow = (property: any) => {
+    if (!user) {
+      toast.error("Please log in to book a property");
+      return;
+    }
+    setSelectedPropertyForBooking(property);
     setIsBookingModalOpen(true);
   };
 
-  const towns = selectedCounty ? locationData[selectedCounty] : [];
+  const handleSearch = () => {
+    // Trigger a refetch with current filters
+    refetch();
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
-      <PageHero 
-        title="Find Your Perfect Rental Home"
-        subtitle="Discover long-term rental properties with detailed information, virtual tours, and verified landlords."
-        imageUrl="/hero-rentals.jpg"
+
+      <PageHero
+        title="Rental Properties"
+        subtitle="Find your perfect rental home in prime locations across Kenya."
+        imageUrl="/lovable-uploads/f0255d0c-8690-486f-912c-653618f170ca.png"
       />
 
+      {/* Search Form */}
       <section className="py-16 -mt-24 relative z-10">
         <div className="container mx-auto px-4">
-            <div className="bg-black/50 backdrop-blur-md rounded-2xl p-6 md:p-8 shadow-elegant border border-white/20 animate-slide-up">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-              <div className="space-y-2 text-left">
-                <label className="text-sm font-medium text-white/80">Select County</label>
-                <Select 
-                  value={selectedCounty} 
-                  onValueChange={setSelectedCounty}
-                >
-                  <SelectTrigger>
+          <div className="bg-black/50 backdrop-blur-md rounded-2xl p-6 md:p-8 shadow-elegant border border-white/20">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+              {/* Search Input */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white/80">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Property name or location..."
+                    className="pl-10 bg-white/90 border-white/30 focus:border-primary text-black"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* County */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white/80">County</label>
+                <Select value={selectedCounty} onValueChange={setSelectedCounty}>
+                  <SelectTrigger className="bg-white/90 border-white/30 focus:border-primary text-black">
                     <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
                     <SelectValue placeholder="Select county..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All Counties</SelectItem>
                     {allCounties.map((county) => (
                       <SelectItem key={county} value={county}>
                         {county}
@@ -184,39 +144,27 @@ const Rentals = () => {
                 </Select>
               </div>
 
-              <div className="space-y-2 text-left">
-                <label className="text-sm font-medium text-white/80">Select Town</label>
-                <Select 
-                  value={selectedTown} 
-                  onValueChange={setSelectedTown}
-                  disabled={!selectedCounty}
-                >
-                  <SelectTrigger>
-                    <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
-                    <SelectValue placeholder="Select town..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {towns.map((town) => (
-                      <SelectItem key={town.name} value={town.name}>
-                        {town.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Town */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-white/80">Town/Area</label>
+                <Input
+                  placeholder="Enter town/area..."
+                  className="bg-white/90 border-white/30 focus:border-primary text-black"
+                  value={selectedTown}
+                  onChange={(e) => setSelectedTown(e.target.value)}
+                />
               </div>
 
-              <div className="space-y-2 text-left">
+              {/* Property Type */}
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-white/80">Property Type</label>
-                <Select 
-                  value={propertyType} 
-                  onValueChange={setPropertyType}
-                >
-                  <SelectTrigger>
-                    <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
-                    <SelectValue placeholder="Property..." />
+                <Select value={propertyType} onValueChange={setPropertyType}>
+                  <SelectTrigger className="bg-white/90 border-white/30 focus:border-primary text-black">
+                    <SelectValue placeholder="Property type..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="single">Single</SelectItem>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="single">Single Room</SelectItem>
                     <SelectItem value="bedsitter">Bedsitter</SelectItem>
                     <SelectItem value="one-bedroom">One Bedroom</SelectItem>
                     <SelectItem value="two-bedroom">Two Bedroom</SelectItem>
@@ -224,76 +172,124 @@ const Rentals = () => {
                     <SelectItem value="four-bedroom">Four Bedroom</SelectItem>
                     <SelectItem value="house">House</SelectItem>
                     <SelectItem value="apartment">Apartment</SelectItem>
-                    <SelectItem value="studio">Studio</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2 text-left">
+              {/* Price Range */}
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-white/80">Price Range</label>
-                <Select 
-                  value={priceRange} 
-                  onValueChange={setPriceRange}
-                >
-                  <SelectTrigger>
-                    <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
-                    <SelectValue placeholder="Price Range" />
+                <Select value={priceRange} onValueChange={setPriceRange}>
+                  <SelectTrigger className="bg-white/90 border-white/30 focus:border-primary text-black">
+                    <SelectValue placeholder="Price range..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0-100000">KSh 0 - KSh 100,000</SelectItem>
-                    <SelectItem value="100000-200000">KSh 100,000 - KSh 200,000</SelectItem>
+                    <SelectItem value="all">All Prices</SelectItem>
+                    <SelectItem value="under-50k">Under KSh 50,000</SelectItem>
+                    <SelectItem value="50k-100k">KSh 50,000 - 100,000</SelectItem>
+                    <SelectItem value="100k-200k">KSh 100,000 - 200,000</SelectItem>
+                    <SelectItem value="over-200k">Over KSh 200,000</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-                  <Button onClick={handleSearch} className="h-12 bg-orange-500 hover:bg-orange-600">
-                <Search className="h-4 w-4 mr-2" />
-                Search
+              {/* Search Button */}
+              <Button onClick={handleSearch} variant="orange" className="h-12">
+                <Filter className="h-4 w-4 mr-2" />
+                Search ({filteredProperties.length})
               </Button>
             </div>
           </div>
         </div>
       </section>
 
+      {/* Properties Grid */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {properties.length > 0 ? (
-              properties.map((property) => (
-                <div key={property.id} onClick={() => handleBookNow(property)}>
-                  <PropertyCard
-                    id={property.id}
-                    title={property.title}
-                    location={property.location}
-                    price={property.price}
-                    priceType={property.price_type as "month" | "night"}
-                    rating={property.rating || 4.0}
-                    reviews={property.reviews || 0}
-                    bedrooms={property.bedrooms}
-                    bathrooms={property.bathrooms}
-                    area={property.area}
-                    image={property.image}
-                    type={property.type}
-                    featured={property.featured || false}
-                    managed_by={property.managed_by || "Landlord"}
-                    landlord_name={property.landlord_name || ""}
-                    agency_name={property.agency_name || ""}
-                  />
-                </div>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground col-span-full">No properties found. Try adjusting your search criteria.</p>
-            )}
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl font-bold">Available Rental Properties</h2>
+            <Button
+              variant="outline"
+              onClick={() => refetch()}
+              disabled={isLoading}
+              className="flex items-center gap-2"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
+              Refresh
+            </Button>
           </div>
+
+          {isLoading ? (
+            <LoadingSpinner className="py-20" />
+          ) : error ? (
+            <ErrorMessage
+              message="Failed to load rental properties. Please try again."
+              onRetry={() => refetch()}
+            />
+          ) : filteredProperties.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredProperties.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  {...property}
+                  onBook={() => handleViewDetails(property)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20">
+              <div className="text-6xl mb-4">🏠</div>
+              <h3 className="text-2xl font-semibold mb-2">No properties found</h3>
+              <p className="text-muted-foreground mb-6">
+                Try adjusting your search criteria or browse all properties.
+              </p>
+              <Button
+                onClick={() => {
+                  setSelectedCounty("all");
+                  setSelectedTown("");
+                  setPropertyType("all");
+                  setPriceRange("all");
+                  setSearchTerm("");
+                  refetch();
+                }}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
-      {selectedProperty && (
+      {/* Property Details Modal */}
+      {selectedPropertyForDetails && (
+        <PropertyDetailsModal
+          isOpen={isDetailsModalOpen}
+          onClose={() => {
+            setIsDetailsModalOpen(false);
+            setSelectedPropertyForDetails(null);
+          }}
+          property={selectedPropertyForDetails}
+          onBook={() => {
+            setIsDetailsModalOpen(false);
+            handleBookNow(selectedPropertyForDetails);
+          }}
+        />
+      )}
+
+      {/* Booking Modal */}
+      {selectedPropertyForBooking && (
         <BookingModal
           isOpen={isBookingModalOpen}
-          onClose={() => setIsBookingModalOpen(false)}
-          propertyTitle={selectedProperty.title}
-          propertyId={selectedProperty.id || ''}
+          onClose={() => {
+            setIsBookingModalOpen(false);
+            setSelectedPropertyForBooking(null);
+          }}
+          propertyTitle={selectedPropertyForBooking.title}
+          propertyId={selectedPropertyForBooking.id.toString()}
         />
       )}
 

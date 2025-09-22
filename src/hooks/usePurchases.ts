@@ -1,55 +1,48 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiClient } from "@/services/api";
 
 export interface Purchase {
-  id: string;
-  item_id: string;
-  buyer_id: string;
-  seller_id: string;
-  purchase_price: number;
-  status: 'pending' | 'completed' | 'cancelled';
+  id: number;
+  item: {
+    id: number;
+    title: string;
+    price: number;
+    category: string;
+    condition: string;
+    description?: string;
+    location: string;
+    image: string;
+    created_at: string;
+  };
+  buyer: number;
   buyer_name: string;
   buyer_email: string;
   buyer_phone: string;
+  seller: number;
+  purchase_price: number;
   delivery_address?: string;
+  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
   created_at: string;
   updated_at: string;
-  // Joined data
-  item?: {
-    title: string;
-    image: string;
-    category: string;
-  };
 }
 
 export const useCreatePurchase = () => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { tokens } = useAuth();
 
   return useMutation({
     mutationFn: async (purchase: {
-      item_id: string;
-      seller_id: string;
+      item: number;
+      seller: number;
       purchase_price: number;
       buyer_name: string;
       buyer_email: string;
       buyer_phone: string;
       delivery_address?: string;
     }) => {
-      if (!user) throw new Error("User must be authenticated");
-
-      const { data, error } = await supabase
-        .from("purchases")
-        .insert({
-          ...purchase,
-          buyer_id: user.id,
-        })
-        .select()
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      return apiClient.createPurchase(purchase, tokens.access);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
@@ -59,49 +52,19 @@ export const useCreatePurchase = () => {
 };
 
 export const useUserPurchases = () => {
-  const { user } = useAuth();
+  const { tokens } = useAuth();
 
   return useQuery({
-    queryKey: ["user_purchases", user?.id],
+    queryKey: ["user_purchases"],
     queryFn: async () => {
-      if (!user) throw new Error("User must be authenticated");
-
-      const { data, error } = await supabase
-        .from("purchases")
-        .select(`
-          *,
-          marketplace_items(title, image, category)
-        `)
-        .eq("buyer_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      const data = await apiClient.getPurchases(tokens.access);
+      // Handle paginated response
+      if (data && data.results) {
+        return data.results as Purchase[];
+      }
       return data as Purchase[];
     },
-    enabled: !!user,
-  });
-};
-
-export const useUserSales = () => {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ["user_sales", user?.id],
-    queryFn: async () => {
-      if (!user) throw new Error("User must be authenticated");
-
-      const { data, error } = await supabase
-        .from("purchases")
-        .select(`
-          *,
-          marketplace_items(title, image, category)
-        `)
-        .eq("seller_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as Purchase[];
-    },
-    enabled: !!user,
+    enabled: !!tokens?.access,
   });
 };

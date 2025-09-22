@@ -1,25 +1,29 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient, buildQueryParams } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface Property {
-  id: string;
+  id: number;
   title: string;
   location: string;
-  price: number;
-  rating: number;
-  bedrooms: number;
-  bathrooms: number;
-  area: number;
-  image: string;
-  type: string;
-  featured: boolean;
+  county?: string;
+  town?: string;
+  price: number | string;
   price_type: string;
+  type: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  area?: number;
+  rental_type?: string;
+  image: string;
+  images?: string[];
+  rating?: number | string | null;
+  reviews?: number;
+  featured: boolean;
+  managed_by?: string;
   landlord_name?: string;
   agency_name?: string;
-  managed_by?: string;
-  landlord_verified?: boolean;
-  agency_verified?: boolean;
-  reviews?: number;
+  created_at: string;
 }
 
 export const useProperties = (filters?: {
@@ -28,38 +32,32 @@ export const useProperties = (filters?: {
   minPrice?: number;
   maxPrice?: number;
   featured?: boolean;
+  county?: string;
+  town?: string;
+  property_type?: string;
+  rental_type?: string;
+  bedrooms?: number;
 }) => {
   return useQuery({
     queryKey: ["properties", filters],
     queryFn: async () => {
-      let query = supabase
-        .from("properties")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const params = buildQueryParams({
+        property_type: filters?.property_type || filters?.type,
+        location: filters?.location,
+        min_price: filters?.minPrice,
+        max_price: filters?.maxPrice,
+        featured: filters?.featured,
+        county: filters?.county,
+        town: filters?.town,
+        rental_type: filters?.rental_type,
+        bedrooms: filters?.bedrooms,
+      });
 
-      if (filters?.type) {
-        query = query.eq("type", filters.type);
+      const data = await apiClient.getProperties(params);
+      // Handle paginated response
+      if (data && data.results) {
+        return data.results as Property[];
       }
-
-      if (filters?.location) {
-        query = query.ilike("location", `%${filters.location}%`);
-      }
-
-      if (filters?.minPrice) {
-        query = query.gte("price", filters.minPrice);
-      }
-
-      if (filters?.maxPrice) {
-        query = query.lte("price", filters.maxPrice);
-      }
-
-      if (filters?.featured !== undefined) {
-        query = query.eq("featured", filters.featured);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
       return data as Property[];
     },
   });
@@ -70,13 +68,66 @@ export const useFeaturedProperties = () => {
 };
 
 export const useRentalProperties = () => {
-  return useProperties({ type: "Rental" });
+  return useProperties({ property_type: "rental" });
 };
 
 export const useAirbnbProperties = () => {
-  return useProperties({ type: "Airbnb" });
+  return useProperties({ property_type: "airbnb" });
 };
 
 export const useOfficeProperties = () => {
-  return useProperties({ type: "Office" });
+  return useProperties({ property_type: "office" });
+};
+
+export const useCreateProperty = () => {
+  const { tokens } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (property: Omit<Property, 'id' | 'created_at'>) => {
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      return apiClient.createProperty(property, tokens.access);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+    },
+  });
+};
+
+export const useUpdateProperty = () => {
+  const { tokens } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...property }: Partial<Property> & { id: number }) => {
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      return apiClient.updateProperty(id, property, tokens.access);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+    },
+  });
+};
+
+export const useDeleteProperty = () => {
+  const { tokens } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      return apiClient.deleteProperty(id, tokens.access);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+    },
+  });
+};
+
+export const useProperty = (id: number) => {
+  return useQuery({
+    queryKey: ['property', id],
+    queryFn: () => apiClient.getProperty(id),
+    enabled: !!id,
+  });
 };

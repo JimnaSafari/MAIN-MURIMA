@@ -1,18 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiClient, buildQueryParams } from "@/services/api";
 
 export interface MovingService {
-  id: string;
+  id: number;
   name: string;
-  rating: number;
-  reviews: number;
   location: string;
-  services: string[];
   price_range: string;
-  verified: boolean;
+  services: string[];
   image: string;
+  rating?: number;
+  reviews?: number;
+  verified: boolean;
+  created_by?: number;
   created_at: string;
-  updated_at: string;
 }
 
 export const useMovingServices = (filters?: {
@@ -23,27 +24,33 @@ export const useMovingServices = (filters?: {
   return useQuery({
     queryKey: ["moving_services", filters],
     queryFn: async () => {
-      let query = supabase
-        .from("moving_services")
-        .select("*")
-        .order("rating", { ascending: false });
+      const params = buildQueryParams({
+        location: filters?.location,
+        verified: filters?.verified,
+        search: filters?.search,
+      });
 
-      if (filters?.location) {
-        query = query.ilike("location", `%${filters.location}%`);
+      const data = await apiClient.getMovingServices(params);
+      // Handle paginated response
+      if (data && data.results) {
+        return data.results as MovingService[];
       }
-
-      if (filters?.verified !== undefined) {
-        query = query.eq("verified", filters.verified);
-      }
-
-      if (filters?.search) {
-        query = query.or(`name.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
       return data as MovingService[];
+    },
+  });
+};
+
+export const useCreateMovingService = () => {
+  const { tokens } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (service: Omit<MovingService, 'id' | 'created_by' | 'created_at'>) => {
+      if (!tokens?.access) throw new Error("User must be authenticated");
+      return apiClient.createMovingService(service, tokens.access);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['moving_services'] });
     },
   });
 };
