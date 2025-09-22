@@ -22,9 +22,9 @@ services:
           name: masskan-db
           property: connectionString
       - key: SUPABASE_URL
-        sync: false
+        value: https://bjpezohjzktqpvfhdutb.supabase.co
       - key: SUPABASE_ANON_KEY
-        sync: false
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqcGV6b2hqemt0cXB2ZmhkdXRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNzk0MDMsImV4cCI6MjA3MDY1NTQwM30.L52z5uCuDrLJmnq8m4BVJkGl4PZGUupQbVqx-lWkwS8
 
   # React Frontend Service
   - type: web
@@ -39,12 +39,13 @@ services:
           name: masskan-backend
           property: host
       - key: VITE_SUPABASE_URL
-        sync: false
+        value: https://bjpezohjzktqpvfhdutb.supabase.co
       - key: VITE_SUPABASE_ANON_KEY
-        sync: false
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqcGV6b2hqemt0cXB2ZmhkdXRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNzk0MDMsImV4cCI6MjA3MDY1NTQwM30.L52z5uCuDrLJmnq8m4BVJkGl4PZGUupQbVqx-lWkwS8
 
 # PostgreSQL Database
 databases:
   - name: masskan-db
     databaseName: masskan_db
     user: masskan_user
+    password: masskan_password
