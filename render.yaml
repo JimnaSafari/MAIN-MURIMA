@@ -40,4 +40,3 @@ databases:
   - name: masskan-db
     databaseName: masskan_db
     user: masskan_user
-    password: masskan_password
